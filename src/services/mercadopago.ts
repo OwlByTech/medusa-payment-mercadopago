@@ -1,4 +1,5 @@
 import { AbstractPaymentProcessor, Cart, CartService, isPaymentProcessorError, LineItem, PaymentProcessorContext, PaymentProcessorError, PaymentProcessorSessionResponse, PaymentSessionStatus } from "@medusajs/medusa";
+import { humanizeAmount } from "medusa-core-utils";
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 import { PreferenceRequest, PreferenceResponse } from "mercadopago/dist/clients/preference/commonTypes";
 import { PreferenceCreateData } from "mercadopago/dist/clients/preference/create/types";
@@ -23,7 +24,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     this.options_ = {
       success_back_url: options.mercadopago_success_back_url,
-      webhook_url: options.mercadopago_webhook_url,
+      webhook_url: `${options.mercadopago_webhook_url}/mercadopago/hooks`,
     };
 
     const config = new MercadoPagoConfig({ accessToken: options.mercadopago_access_token });
@@ -161,7 +162,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
         quantity: item.quantity,
         description: item.description,
         currency_id: currency_code.toUpperCase(),
-        unit_price: item.unit_price
+        unit_price: humanizeAmount(item.unit_price, currency_code)
       };
     });
 
