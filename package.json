@@ -16,13 +16,18 @@
     "test": "cross-env jest"
   },
   "dependencies": {
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "mercadopago": "^2.0.8"
+  },
+  "peerDependencies": {
+    "@medusajs/medusa": "^1.20.4"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
     "@babel/core": "^7.14.3",
     "@babel/preset-typescript": "^7.21.4",
     "@medusajs/medusa": "^1.20.4",
+    "@medusajs/types": "^1.11.15",
     "@types/jest": "^27.4.0",
     "@types/node": "^17.0.8",
     "cross-env": "^7.0.3",
@@ -57,8 +62,5 @@
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node"
-  },
-  "peerDependencies": {
-    "@medusajs/medusa": "^1.20.4"
   }
 }
