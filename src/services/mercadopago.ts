@@ -9,7 +9,6 @@ import { EOL } from "os";
 
 type MercadoPagoOptions = {
   public_key: string;
-  success_back_url: string;
   webhook_url: string;
 };
 
@@ -27,7 +26,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     this.options_ = {
       public_key: options.mercadopago_public_key,
-      success_back_url: options.mercadopago_success_back_url,
       webhook_url: `${options.mercadopago_webhook_url}/mercadopago/hooks`,
     };
 
@@ -52,7 +50,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async capturePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("capturePayment", paymentSessionData);
     const { captured } = paymentSessionData.data as Record<string, unknown>;
     try {
       if (captured === true) {
@@ -67,7 +64,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async authorizePayment(paymentSessionData: Record<string, unknown>, context: Record<string, unknown>): Promise<PaymentProcessorError | { status: PaymentSessionStatus; data: Record<string, unknown>; }> {
-    console.log("authorizePayment", paymentSessionData, context);
     let payment: PaymentResponse;
     try {
       //@ts-ignore
@@ -90,12 +86,10 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async cancelPayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("cancelPayment", paymentSessionData);
     throw new Error("Method not implemented.");
   }
 
   async initiatePayment(context: PaymentProcessorContext): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
-    console.log("initiatePayment", context);
     const { resource_id } = context;
     const cart: Cart = await this.cartService_.retrieveWithTotals(resource_id);
 
@@ -122,34 +116,27 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async deletePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("deletePayment", paymentSessionData);
     return {}
   }
 
   async getPaymentStatus(paymentSessionData: Record<string, unknown>): Promise<PaymentSessionStatus> {
-    console.log("getPaymentStatus", paymentSessionData);
     const { id } = paymentSessionData as Record<string, unknown>;
     let payment: PaymentResponse;
     try {
       //@ts-ignore
       payment = await this.payment_.get({ id: id });
     } catch (e) {
-      console.log(e);
       return PaymentSessionStatus.REQUIRES_MORE;
     }
-
-    console.log(payment?.status);
 
     return getStatus(payment.status as string);
   }
 
   async refundPayment(paymentSessionData: Record<string, unknown>, refundAmount: number): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("refundPayment", paymentSessionData);
     throw new Error("Method not implemented.");
   }
 
   async retrievePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("retrievePayment", paymentSessionData);
     try {
       const res = await this.payment_.get({ id: paymentSessionData.id as string });
       return {
@@ -164,7 +151,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async updatePayment(context: PaymentProcessorContext): Promise<void | PaymentProcessorError | PaymentProcessorSessionResponse> {
-    console.log("updatePaymenth", context);
     const { resource_id, paymentSessionData } = context;
     const preference_id: string = paymentSessionData.preference_id as string;
 
@@ -201,7 +187,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async updatePaymentData(sessionId: string, data: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("updatePaymentData", sessionId, data);
     throw new Error("Method not implemented.");
   }
 
@@ -229,7 +214,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
         notification_url: `${this.options_.webhook_url}`,
         external_reference: resource_id,
         back_urls: {
-          success: `${this.options_.success_back_url}`,
+          success: `http://localhost:8000/checkout`,
         }
       }
     };

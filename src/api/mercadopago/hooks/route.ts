@@ -1,4 +1,4 @@
-import { AbstractCartCompletionStrategy, CartService, IdempotencyKeyService, MedusaRequest, MedusaResponse, OrderService } from "@medusajs/medusa";
+import { CartService, MedusaRequest, MedusaResponse, OrderService } from "@medusajs/medusa";
 import { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import MercadoPagoService from "src/services/mercadopago";
 import { EntityManager } from "typeorm";
