@@ -8,6 +8,7 @@ import { PreferenceCreateData } from "mercadopago/dist/clients/preference/create
 import { EOL } from "os";
 
 type MercadoPagoOptions = {
+  public_key: string;
   success_back_url: string;
   webhook_url: string;
 };
@@ -24,10 +25,14 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     this.cartService_ = container.cartService;
 
+    console.log(options);
     this.options_ = {
+      public_key: options.mercadopago_public_key,
       success_back_url: options.mercadopago_success_back_url,
       webhook_url: `${options.mercadopago_webhook_url}/mercadopago/hooks`,
     };
+  
+    console.log(this.options_);
 
     const config = new MercadoPagoConfig({ accessToken: options.mercadopago_access_token });
     this.preference_ = new Preference(config);
@@ -93,7 +98,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async initiatePayment(context: PaymentProcessorContext): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
-    console.log("initiate payment");
+    console.log("initiate payment v2");
     const { resource_id } = context;
     const cart: Cart = await this.cartService_.retrieveWithTotals(resource_id);
 
@@ -113,6 +118,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     return {
       session_data: {
+        public_key: this.options_.public_key,
         preference_id: paymentIntent.id,
         payment_url: paymentIntent.init_point,
         payment_sandbox_url: paymentIntent.sandbox_init_point
@@ -182,6 +188,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     return {
       session_data: {
+        public_key: this.options_.public_key,
         preference_id: paymentIntent.id,
         payment_url: paymentIntent.init_point,
         payment_sandbox_url: paymentIntent.sandbox_init_point
