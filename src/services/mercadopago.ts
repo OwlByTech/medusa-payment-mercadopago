@@ -1,6 +1,8 @@
-import { AbstractPaymentProcessor, Cart, CartService, isPaymentProcessorError, LineItem, PaymentProcessorContext, PaymentProcessorError, PaymentProcessorSessionResponse, PaymentSessionStatus } from "@medusajs/medusa";
+import { AbstractPaymentProcessor, Cart, CartService, isPaymentProcessorError, LineItem, PaymentProcessorContext, PaymentProcessorError, PaymentProcessorSessionResponse } from "@medusajs/medusa";
+import { PaymentSessionStatus } from "@medusajs/types";
 import { humanizeAmount } from "medusa-core-utils";
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
+import { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { PreferenceRequest, PreferenceResponse } from "mercadopago/dist/clients/preference/commonTypes";
 import { PreferenceCreateData } from "mercadopago/dist/clients/preference/create/types";
 import { EOL } from "os";
@@ -48,25 +50,42 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async capturePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
+    const { captured } = paymentSessionData.data as Record<string, unknown>;
     try {
-      throw new Error("Method not implemented.");
+      if (captured === true) {
+        return paymentSessionData.data as Record<string, unknown>;
+      }
     } catch (e) {
       return this.buildError(
-        "Error at Capture Payment",
+        "Error capturing payment",
         e
       );
     }
   }
 
   async authorizePayment(paymentSessionData: Record<string, unknown>, context: Record<string, unknown>): Promise<PaymentProcessorError | { status: PaymentSessionStatus; data: Record<string, unknown>; }> {
+    console.log("authorizePayment");
+    console.log(paymentSessionData, context);
+    let payment: PaymentResponse;
     try {
-      throw new Error("Method not implemented.");
+      //@ts-ignore
+      payment = await this.retrievePayment({ id: context.id });
+
     } catch (e) {
       return this.buildError(
-        "Error at Capture Payment",
+        "Error retrieving payment in authorize payment",
         e
       );
     }
+
+    return {
+      status: getStatus(payment.status),
+      data: {
+        ...paymentSessionData,
+        id: context.id
+      }
+    }
+
   }
 
   async cancelPayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
@@ -74,6 +93,7 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async initiatePayment(context: PaymentProcessorContext): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
+    console.log("initiate payment");
     const { resource_id } = context;
     const cart: Cart = await this.cartService_.retrieveWithTotals(resource_id);
 
@@ -89,6 +109,8 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
       );
     }
 
+    console.log(paymentIntent);
+
     return {
       session_data: {
         preference_id: paymentIntent.id,
@@ -99,11 +121,16 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async deletePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
+    console.log("delete payment");
+    console.log(paymentSessionData);
     return {}
   }
 
   async getPaymentStatus(paymentSessionData: Record<string, unknown>): Promise<PaymentSessionStatus> {
-    throw new Error("Method not implemented.");
+    console.log("getPaymentStatus");
+    const { status } = paymentSessionData.data as Record<string, unknown>;
+    console.log(paymentSessionData);
+    return getStatus(status as string);
   }
 
   async refundPayment(paymentSessionData: Record<string, unknown>, refundAmount: number): Promise<Record<string, unknown> | PaymentProcessorError> {
@@ -111,10 +138,21 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async retrievePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    throw new Error("Method not implemented.");
+    try {
+      const res = await this.payment_.get({ id: paymentSessionData.id as string });
+      return {
+        ...res
+      }
+    } catch (e) {
+      return this.buildError(
+        "Error retrieving payment data",
+        e
+      );
+    }
   }
 
   async updatePayment(context: PaymentProcessorContext): Promise<void | PaymentProcessorError | PaymentProcessorSessionResponse> {
+    console.log("updatePayment");
     const { resource_id, paymentSessionData } = context;
     const preference_id: string = paymentSessionData.preference_id as string;
 
@@ -139,6 +177,8 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
         e
       );
     }
+
+    console.log(paymentIntent);
 
     return {
       session_data: {
@@ -184,6 +224,26 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     return preferenceData;
 
+  }
+}
+
+function getStatus(status: string): PaymentSessionStatus {
+  switch (status) {
+    case "approved":
+    case "authorized":
+      return PaymentSessionStatus.AUTHORIZED;
+    case "refunded":
+    case "charged_back":
+    case "cancelled":
+      return PaymentSessionStatus.CANCELED;
+    case "rejected":
+      return PaymentSessionStatus.ERROR;
+    case "pending":
+    case "in_process":
+    case "in_mediation":
+      return PaymentSessionStatus.PENDING;
+    default:
+      return PaymentSessionStatus.PENDING;
   }
 }
 
