@@ -3,7 +3,7 @@ import { PaymentSessionStatus } from "@medusajs/types";
 import { humanizeAmount } from "medusa-core-utils";
 import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
 import { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
-import { PreferenceRequest, PreferenceResponse } from "mercadopago/dist/clients/preference/commonTypes";
+import { PreferenceResponse } from "mercadopago/dist/clients/preference/commonTypes";
 import { PreferenceCreateData } from "mercadopago/dist/clients/preference/create/types";
 import { EOL } from "os";
 
@@ -25,14 +25,11 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
 
     this.cartService_ = container.cartService;
 
-    console.log(options);
     this.options_ = {
       public_key: options.mercadopago_public_key,
       success_back_url: options.mercadopago_success_back_url,
       webhook_url: `${options.mercadopago_webhook_url}/mercadopago/hooks`,
     };
-  
-    console.log(this.options_);
 
     const config = new MercadoPagoConfig({ accessToken: options.mercadopago_access_token });
     this.preference_ = new Preference(config);
@@ -69,13 +66,10 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async authorizePayment(paymentSessionData: Record<string, unknown>, context: Record<string, unknown>): Promise<PaymentProcessorError | { status: PaymentSessionStatus; data: Record<string, unknown>; }> {
-    console.log("authorizePayment");
-    console.log(paymentSessionData, context);
     let payment: PaymentResponse;
     try {
       //@ts-ignore
       payment = await this.retrievePayment({ id: context.id });
-
     } catch (e) {
       return this.buildError(
         "Error retrieving payment in authorize payment",
@@ -98,7 +92,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async initiatePayment(context: PaymentProcessorContext): Promise<PaymentProcessorError | PaymentProcessorSessionResponse> {
-    console.log("initiate payment v2");
     const { resource_id } = context;
     const cart: Cart = await this.cartService_.retrieveWithTotals(resource_id);
 
@@ -114,8 +107,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
       );
     }
 
-    console.log(paymentIntent);
-
     return {
       session_data: {
         public_key: this.options_.public_key,
@@ -127,16 +118,20 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async deletePayment(paymentSessionData: Record<string, unknown>): Promise<Record<string, unknown> | PaymentProcessorError> {
-    console.log("delete payment");
-    console.log(paymentSessionData);
     return {}
   }
 
   async getPaymentStatus(paymentSessionData: Record<string, unknown>): Promise<PaymentSessionStatus> {
-    console.log("getPaymentStatus");
-    const { status } = paymentSessionData.data as Record<string, unknown>;
-    console.log(paymentSessionData);
-    return getStatus(status as string);
+    const { id } = paymentSessionData as Record<string, unknown>;
+    let payment: PaymentResponse;
+    try {
+      //@ts-ignore
+      payment = await this.retrievePayment({ id: id });
+    } catch (e) {
+      return PaymentSessionStatus.REQUIRES_MORE;
+    }
+
+    return getStatus(payment.status as string);
   }
 
   async refundPayment(paymentSessionData: Record<string, unknown>, refundAmount: number): Promise<Record<string, unknown> | PaymentProcessorError> {
@@ -158,7 +153,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
   }
 
   async updatePayment(context: PaymentProcessorContext): Promise<void | PaymentProcessorError | PaymentProcessorSessionResponse> {
-    console.log("updatePayment");
     const { resource_id, paymentSessionData } = context;
     const preference_id: string = paymentSessionData.preference_id as string;
 
@@ -183,8 +177,6 @@ abstract class MercadoPagoService extends AbstractPaymentProcessor {
         e
       );
     }
-
-    console.log(paymentIntent);
 
     return {
       session_data: {

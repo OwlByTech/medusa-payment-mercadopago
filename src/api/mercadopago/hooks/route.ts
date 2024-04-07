@@ -1,10 +1,10 @@
-import { CartService, MedusaRequest, MedusaResponse, OrderService, SwapService } from "@medusajs/medusa";
+import { AbstractCartCompletionStrategy, CartService, IdempotencyKeyService, MedusaRequest, MedusaResponse, OrderService } from "@medusajs/medusa";
 import { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import MercadoPagoService from "src/services/mercadopago";
 import { EntityManager } from "typeorm";
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
-  const mercadoPagoService = req.scope.resolve<MercadoPagoService>('mercadopagoProviderService');
+  const mercadoPagoService = req.scope.resolve<MercadoPagoService>('mercadopagoService');
 
   const authorizeCart = async (req: MedusaRequest, cartId: string, notificationType: string, paymentId: number) => {
     const manager: EntityManager = req.scope.resolve("manager");
@@ -24,14 +24,14 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
           const order = await orderService
             .withTransaction(m)
             .retrieveByCartId(cartId)
-            .catch((_) => undefined)
+            .catch((_) => undefined);
 
           if (!order) {
             await cartService
               .withTransaction(m)
-              .setPaymentSession(cartId, "mercadopago")
-            await cartService.withTransaction(m).authorizePayment(cartId, { id: paymentId })
-            await orderService.withTransaction(m).createFromCart(cartId)
+              .setPaymentSession(cartId, "mercadopago");
+            await cartService.withTransaction(m).authorizePayment(cartId, { id: paymentId });
+            await orderService.withTransaction(m).createFromCart(cartId);
           }
           break
         }
@@ -39,21 +39,19 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     });
   }
 
-  console.log(req.body);
   switch (req.body.type) {
     case "payment":
       try {
-        console.log("payment type switch");
         //TODO: Remove ts-ignore and create a flexble type of response to fix value types of Payment Response
         //@ts-ignore
-        const payment: PaymentResponse = await mercadoPagoService.retrievePayment({ id: req.body.id });
-        console.log("payment switch", payment);
+        const payment: PaymentResponse = await mercadoPagoService.retrievePayment({  id: req.body.data.id });
         await authorizeCart(req, payment.external_reference, req.body.action, payment.id);
         res.sendStatus(200);
+        return;
       } catch (e) {
-        res.send(402);
+        res.sendStatus(402);
+        return;
       }
-      break;
   }
 
   res.sendStatus(204);
